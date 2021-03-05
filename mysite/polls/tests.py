@@ -100,3 +100,41 @@ class QuestionIndexViewTests(TestCase):
         self.assertQuerysetEqual(response.context['latest_question_list'],
                                  ['<Question: Past question 2.>',
                                   '<Question: Past question 1.>',])
+
+
+class QuestionDetailViewTests(TestCase):
+    def test_future_question(self):
+        """
+        The detail view of a question with a pub_date in the future returns
+        a 404 not found.
+        """
+        future_question = create_question(question_text='Future question.', days=30)
+        url = reverse('polls:detail', args=(future_question.id,))
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_past_question(self):
+        """
+        The detail view of a question with a pub_date in the past displays the
+        question's text.
+        """
+        past_question = create_question(question_text='Past question.', days=-30)
+        url = reverse('polls:detail', args=(past_question.id,))
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, past_question.question_text)
+
+    def test_questions_as_subtest(self):
+        """
+        Attempting to combine the above two questions into one test using subTest
+        """
+        questions = [('Future question.', 30, 404),
+                     ('Past question.', -30, 200)]
+        for question_text, days, status_code in questions:
+            with self.subTest(question=question_text):
+                question = create_question(question_text=question_text, days=days)
+                url = reverse('polls:detail', args=(question.id,))
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, status_code)
+                if status_code == 200:
+                    self.assertContains(response, question_text)
